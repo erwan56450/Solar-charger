@@ -2,7 +2,7 @@
 # Description:
 # This script adjusts the charge current to a specified target value.
 # - If the current value is higher than the target, it decrements the value in steps with a delay.
-# - If the current value is lower than the target, it sets the value directly without delay.
+# - If the current value is lower than the target,it decrements the value in steps with a delay (working for no delay)
 
 adjust_charge_current:
   alias: "Adjust Charge Current"
