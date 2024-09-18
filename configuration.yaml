@@ -1,4 +1,5 @@
 # Voiture électrique
+## créé un slider pour régler la charge maximum de la baterrie voiture
 input_number:
   zoe_coupure_pourcentage:
     name: Coupure Pourcentage
@@ -7,7 +8,7 @@ input_number:
     max: 100
     step: 1
     unit_of_measurement: '%'
-
+## créé un slider Virtuel pour commender le slider de chargeur Tuya
   chargeurvoiture_set_chargevirtuel_current:
     name: Set Charge Virtuel Current
     initial: 8
@@ -15,7 +16,7 @@ input_number:
     max: 32
     step: 1
     unit_of_measurement: 'A'
-
+## créer un bouton de selection  ON OFF SOLAIRE HC
 input_select:
   selecteurchargeurve:
     name: Selecteur Chargeur VE
