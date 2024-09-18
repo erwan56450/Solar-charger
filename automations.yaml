@@ -1,0 +1,222 @@
+# Automatisation pour la gestion de la charge de la voiture électrique Zoé
+- id: Gestion_de_la_charge_Zoe
+  alias: "Gestion de la charge Zoe"
+  trigger:
+    # Déclencheurs pour tous les modes (se déclenche lorsque l'un des états change)
+    - platform: state
+      entity_id:
+        - sensor.fl995hk_batterie             # Niveau de batterie de la Zoé
+        - input_number.zoe_coupure_pourcentage # Pourcentage de coupure défini
+        - sensor.chargeurvoiture_status       # Statut du chargeur de la voiture
+        - input_select.SelecteurChargeurVE    # Sélecteur du mode de charge
+        - sensor.combined_power_pylontech     # Puissance solaire disponible
+        - sensor.combined_battery_soc         # État de charge de la batterie maison
+    # Déclencheurs pour le début et la fin de la période solaire
+    - platform: template
+      value_template: >-
+        {{ states('sensor.time') == (state_attr('sun.sun', 'next_rising') | as_datetime + timedelta(hours=1)).strftime('%H:%M') }}
+    - platform: template
+      value_template: >-
+        {{ states('sensor.time') == (state_attr('sun.sun', 'next_setting') | as_datetime - timedelta(hours=1)).strftime('%H:%M') }}
+
+  condition: []
+  
+  action:
+    - choose:
+        # Mode "On" : Démarrage immédiat de la charge
+        - conditions:
+            - condition: template
+              value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'On') }}"
+          sequence:
+            # Démarre la charge de la Zoé
+            - service: select.select_option
+              data:
+                entity_id: select.chargeurvoiture_toggle_charging
+                option: "Start charging"
+
+        # Mode "Heures-Creuses" : Gestion pendant les heures creuses
+        - conditions:
+            - condition: template
+              value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'Heures-Creuses') }}"
+          sequence:
+            - choose:
+                # Démarrer la charge pendant les heures creuses si la batterie est sous le seuil
+                - conditions:
+                    - condition: template
+                      value_template: "{{ states('sensor.linky_relais') == '1' }}" # Vérifie que c'est les heures creuses
+                    - condition: template
+                      value_template: "{{ states('sensor.fl995hk_batterie') | float < states('input_number.zoe_coupure_pourcentage') | float }}" # Batterie Zoé sous le seuil
+                    - condition: template
+                      value_template: "{{ not is_state('sensor.chargeurvoiture_status', 'Charging') }}" # La voiture ne charge pas déjà
+                  sequence:
+                    # Démarre la charge
+                    - service: select.select_option
+                      data:
+                        entity_id: select.chargeurvoiture_toggle_charging
+                        option: "Start charging"
+                # Arrêter la charge pendant les heures creuses si la batterie est au-dessus du seuil
+                - conditions:
+                    - condition: template
+                      value_template: "{{ states('sensor.linky_relais') == '1' }}" # Heures creuses
+                    - condition: template
+                      value_template: "{{ states('sensor.fl995hk_batterie') | float >= states('input_number.zoe_coupure_pourcentage') | float }}" # Batterie Zoé au-dessus du seuil
+                    - condition: template
+                      value_template: "{{ is_state('sensor.chargeurvoiture_status', 'Charging') }}" # La voiture est en charge
+                  sequence:
+                    # Arrête la charge
+                    - service: select.select_option
+                      data:
+                        entity_id: select.chargeurvoiture_toggle_charging
+                        option: "Stop charging"
+                # Arrêter la charge pendant les heures pleines
+                - conditions:
+                    - condition: template
+                      value_template: "{{ states('sensor.linky_relais') == '0' }}" # Heures pleines
+                    - condition: template
+                      value_template: "{{ is_state('sensor.chargeurvoiture_status', 'Charging') }}" # La voiture est en charge
+                  sequence:
+                    # Arrête la charge
+                    - service: select.select_option
+                      data:
+                        entity_id: select.chargeurvoiture_toggle_charging
+                        option: "Stop charging"
+
+        # Mode "Solaire" : Gestion basée sur la production solaire
+        - conditions:
+            - condition: template
+              value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'Solaire') }}"
+          sequence:
+            - choose:
+                # Vérifier si on est dans la période solaire autorisée
+                - conditions:
+                    - condition: sun
+                      after: sunrise
+                      after_offset: '01:00:00' # 1 heure après le lever du soleil
+                      before: sunset
+                      before_offset: '-01:00:00' # 1 heure avant le coucher du soleil
+                  sequence:
+                    - choose:
+                        # Démarrer la charge à 8A si elle n'est pas déjà en cours
+                        - conditions:
+                            - condition: template
+                              value_template: "{{ not is_state('sensor.chargeurvoiture_status', 'Charging') }}" # La voiture ne charge pas déjà
+                          sequence:
+                            # Démarre la charge
+                            - service: select.select_option
+                              data:
+                                entity_id: select.chargeurvoiture_toggle_charging
+                                option: "Start charging"
+                            # Définit le courant de charge à 8A
+                            - service: input_number.set_value
+                              data:
+                                entity_id: input_number.chargeurvoiture_set_charge_current
+                                value: 8
+                    # Boucle pour ajuster le courant de charge en fonction de la puissance solaire
+                    - repeat:
+                        while:
+                          - condition: and
+                            conditions:
+                              - condition: state
+                                entity_id: sensor.chargeurvoiture_status
+                                state: 'Charging' # Tant que la voiture est en charge
+                              - condition: sun
+                                after: sunrise
+                                after_offset: '01:00:00' # Dans la période solaire autorisée
+                                before: sunset
+                                before_offset: '-01:00:00'
+                        sequence:
+                          # Attend un changement de la puissance solaire
+                          - wait_for_trigger:
+                              - platform: state
+                                entity_id: sensor.combined_power_pylontech
+                          # Définition des variables locales
+                          - variables:
+                              power: "{{ states('sensor.combined_power_pylontech') | float }}" # Puissance solaire disponible
+                              current: "{{ states('input_number.chargeurvoiture_set_charge_current') | float }}" # Courant de charge actuel
+                          - choose:
+                              # Si la puissance est négative (consommation supérieure à la production)
+                              - conditions:
+                                  - condition: template
+                                    value_template: "{{ power < 0 }}"
+                                sequence:
+                                  - choose:
+                                      # Si le courant est supérieur à 8A, on le réduit de 1A
+                                      - conditions:
+                                          - condition: template
+                                            value_template: "{{ current > 8 }}"
+                                        sequence:
+                                          # Réduit le courant de charge de 1A
+                                          - service: input_number.set_value
+                                            data:
+                                              entity_id: input_number.chargeurvoiture_set_charge_current
+                                              value: "{{ current - 1 }}"
+                                      # Si le courant est déjà à 8A, on attend 30s et on arrête la charge
+                                      - conditions:
+                                          - condition: template
+                                            value_template: "{{ current == 8 }}"
+                                        sequence:
+                                          # Attendre 30 secondes
+                                          - delay: "00:00:30"
+                                          # Arrêter la charge
+                                          - service: select.select_option
+                                            data:
+                                              entity_id: select.chargeurvoiture_toggle_charging
+                                              option: "Stop charging"
+                                          # Stopper la boucle avec un message
+                                          - stop: "La charge est arrêtée car la puissance solaire est insuffisante."
+                              # Si la puissance est positive (production supérieure à la consommation)
+                              - conditions:
+                                  - condition: template
+                                    value_template: "{{ power > 0 }}"
+                                sequence:
+                                  - choose:
+                                      # Si le courant est inférieur à 32A, on l'augmente de 1A
+                                      - conditions:
+                                          - condition: template
+                                            value_template: "{{ current < 32 }}"
+                                        sequence:
+                                          # Augmente le courant de charge de 1A
+                                          - service: input_number.set_value
+                                            data:
+                                              entity_id: input_number.chargeurvoiture_set_charge_current
+                                              value: "{{ current + 1 }}"
+                          # Attendre 5 secondes avant la prochaine vérification
+                          - delay: "00:00:05"
+                # Si on est en dehors de la période solaire autorisée
+                - conditions:
+                    - condition: not
+                      conditions:
+                        - condition: sun
+                          after: sunrise
+                          after_offset: '01:00:00'
+                          before: sunset
+                          before_offset: '-01:00:00'
+                    - condition: state
+                      entity_id: sensor.chargeurvoiture_status
+                      state: 'Charging' # La voiture est en charge
+                  sequence:
+                    # Arrêter la charge
+                    - service: select.select_option
+                      data:
+                        entity_id: select.chargeurvoiture_toggle_charging
+                        option: "Stop charging"
+
+        # Mode "Off" : Arrêt de la charge
+        - conditions:
+            - condition: template
+              value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'Off') }}"
+          sequence:
+            - choose:
+                # Si la voiture est en charge, on arrête la charge
+                - conditions:
+                    - condition: state
+                      entity_id: sensor.chargeurvoiture_status
+                      state: 'Charging'
+                  sequence:
+                    # Arrêter la charge
+                    - service: select.select_option
+                      data:
+                        entity_id: select.chargeurvoiture_toggle_charging
+                        option: "Stop charging"
+
+  mode: single # Empêche l'automatisation de s'exécuter en parallèle
