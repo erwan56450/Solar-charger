@@ -1,0 +1,28 @@
+# Voiture électrique
+input_number:
+  zoe_coupure_pourcentage:
+    name: Coupure Pourcentage
+    initial: 90
+    min: 40
+    max: 100
+    step: 1
+    unit_of_measurement: '%'
+
+  chargeurvoiture_set_chargevirtuel_current:
+    name: Set Charge Virtuel Current
+    initial: 8
+    min: 8
+    max: 32
+    step: 1
+    unit_of_measurement: 'A'
+
+input_select:
+  selecteurchargeurve:
+    name: Selecteur Chargeur VE
+    options:
+      - 'On'
+      - 'Solaire'
+      - 'Heures-Creuses'
+      - 'Off'
+    initial: 'Off'
+    icon: mdi:toggle-switch
