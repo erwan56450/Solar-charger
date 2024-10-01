@@ -2,30 +2,36 @@
 # Description:
 # This script adjusts the charge current to a specified target value.
 # - If the current value is higher than the target, it decrements the value in steps with a delay.
-# - If the current value is lower than the target,it decrements the value in steps with a delay (working for no delay)
+# - If the current value is lower than the target,it decrements the value  with no delay
 
 adjust_charge_current:
   alias: "Adjust Charge Current"
   mode: single
   fields:
     target_value:
-      description: "The target value to adjust to"
+      description: "La valeur cible à atteindre"
       example: 16
   sequence:
-    - repeat:
-        until:
-          - condition: template
-            value_template: "{{ states('number.chargeurvoiture_set_charge_current') | float == target_value }}"
-        sequence:
-          - service: number.set_value
-            data:
-              entity_id: number.chargeurvoiture_set_charge_current
-              value: >
-                {% set current_value = states('number.chargeurvoiture_set_charge_current') | float %}
-                {% set step = 4 %}
-                {% if current_value < target_value %}
-                  {{ [current_value + step, target_value] | min }}
-                {% else %}
-                  {{ [current_value - step, target_value] | max }}
-                {% endif %}
-          - delay: "00:00:02"
+    - variables:
+        current_value: "{{ states('number.chargeurvoiture_set_charge_current') | float }}"
+    - choose:
+        - conditions: "{{ current_value < target_value }}"
+          sequence:
+            - service: number.set_value
+              data:
+                entity_id: number.chargeurvoiture_set_charge_current
+                value: "{{ target_value }}"
+        - conditions: "{{ current_value > target_value }}"
+          sequence:
+            - repeat:
+                until:
+                  - condition: template
+                    value_template: "{{ states('number.chargeurvoiture_set_charge_current') | float <= target_value }}"
+                sequence:
+                  - service: number.set_value
+                    data:
+                      entity_id: number.chargeurvoiture_set_charge_current
+                      value: >
+                        {% set current_value = states('number.chargeurvoiture_set_charge_current') | float %}
+                        {% set step = 4 %}
+                        {{ [current_value - step, target_value] | max }}
