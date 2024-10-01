@@ -1,4 +1,5 @@
-##Link the virtual buton Amp charge to the Real on of the charger
+
+#commande le bouton de l'amperage de la borne via le bouton vituel au traver du script qui est apellé si dessous
 - id: sync_charge_current_with_virtual
   alias: "Sync Charge Current with Virtual"
   trigger:
@@ -12,9 +13,10 @@
 
 
 
+
 # Automatisation pour la gestion de la charge de la voiture électrique Zoé
 - id: Gestion_de_la_charge_Zoe
-  alias: "Gestion de la charge Zoe"
+  alias: "Gestion de la charge voiture electrique"
   trigger:
     # Déclencheurs pour tous les modes (se déclenche lorsque l'un des états change)
     - platform: state
@@ -23,7 +25,7 @@
         - input_number.zoe_coupure_pourcentage # Pourcentage de coupure défini
         - sensor.chargeurvoiture_status       # Statut du chargeur de la voiture
         - input_select.SelecteurChargeurVE    # Sélecteur du mode de charge
-        - sensor.combined_power_pylontech     # Puissance solaire disponible
+        - sensor.combined_power_pylontech_voltronic     # Puissance solaire disponible
         - sensor.combined_battery_soc         # État de charge de la batterie maison
     # Déclencheurs pour le début et la fin de la période solaire
     - platform: template
@@ -37,68 +39,146 @@
   
   action:
     - choose:
-        # Mode "On" : Démarrage immédiat de la charge
+###################  Mode "On No limits" : Démarrage immédiat de la charge , sous aucunes reserve. ###################
         - conditions:
             - condition: template
-              value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'On') }}"
+              value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'On No Limits') }}"
           sequence:
             # Démarre la charge de la Zoé
             - service: select.select_option
               data:
                 entity_id: select.chargeurvoiture_toggle_charging
                 option: "Start charging"
-
-        # Mode "Heures-Creuses" : Gestion pendant les heures creuses
+                
+################## Mode "On limited" : Démarrage de la charge et stop en fonction du pourcentage de la batterie
         - conditions:
             - condition: template
-              value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'Heures-Creuses') }}"
+              value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'On Limited') }}"
           sequence:
             - choose:
-                # Démarrer la charge pendant les heures creuses si la batterie est sous le seuil
+                # Démarrer la charge si la batterie de la Zoé est sous le seuil défini
                 - conditions:
                     - condition: template
-                      value_template: "{{ states('sensor.linky_relais') == '1' }}" # Vérifie que c'est les heures creuses
-                    - condition: template
-                      value_template: "{{ states('sensor.fl995hk_batterie') | float < states('input_number.zoe_coupure_pourcentage') | float }}" # Batterie Zoé sous le seuil
+                      value_template: "{{ states('sensor.fl995hk_batterie') | float < states('input_number.zoe_coupure_pourcentage') | float }}" # Batterie Zoé sous le seuil défini
                     - condition: template
                       value_template: "{{ not is_state('sensor.chargeurvoiture_status', 'Charging') }}" # La voiture ne charge pas déjà
                   sequence:
-                    # Démarre la charge
+                    # Démarrer la charge
                     - service: select.select_option
                       data:
                         entity_id: select.chargeurvoiture_toggle_charging
                         option: "Start charging"
-                # Arrêter la charge pendant les heures creuses si la batterie est au-dessus du seuil
+            # Si la batterie de la Zoé dépasse le seuil défini, arrêter la charge
+            - choose:
                 - conditions:
                     - condition: template
-                      value_template: "{{ states('sensor.linky_relais') == '1' }}" # Heures creuses
-                    - condition: template
-                      value_template: "{{ states('sensor.fl995hk_batterie') | float >= states('input_number.zoe_coupure_pourcentage') | float }}" # Batterie Zoé au-dessus du seuil
+                      value_template: "{{ states('sensor.fl995hk_batterie') | float >= states('input_number.zoe_coupure_pourcentage') | float }}" # Batterie Zoé au-dessus du seuil défini
                     - condition: template
                       value_template: "{{ is_state('sensor.chargeurvoiture_status', 'Charging') }}" # La voiture est en charge
                   sequence:
-                    # Arrête la charge
-                    - service: select.select_option
-                      data:
-                        entity_id: select.chargeurvoiture_toggle_charging
-                        option: "Stop charging"
-                # Arrêter la charge pendant les heures pleines
-                - conditions:
-                    - condition: template
-                      value_template: "{{ states('sensor.linky_relais') == '0' }}" # Heures pleines
-                    - condition: template
-                      value_template: "{{ is_state('sensor.chargeurvoiture_status', 'Charging') }}" # La voiture est en charge
-                  sequence:
-                    # Arrête la charge
+                    # Arrêter la charge
                     - service: select.select_option
                       data:
                         entity_id: select.chargeurvoiture_toggle_charging
                         option: "Stop charging"
 
-        # Mode "Solaire" : Gestion basée sur la production solaire
+
+################### Mode "Heures-Creuses" : Gestion pendant les heures creuses ###################
+################### J'utilise sur mon compteur electrique un LIXEE - Module TIC qui remonte les moment ou le courant est moins chere, mais vous pouvez utiliser des horraires fixe.
+       
+- conditions:
+    - condition: template
+      value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'Heures-Creuses') }}"
+  sequence:
+    - choose:
         - conditions:
             - condition: template
-              value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'Solaire') }}"
+              value_template: "{{ states('sensor.linky_relais') == '1' }}"  # Vérifie que c'est les heures creuses
+          sequence:
+            - service: select.select_option
+              data:
+                entity_id: select.voltronic_1_param01
+                option: "UTI"  # Passer en mode UTI (GRID)
+            - delay:
+                seconds: 30  # Attendre 30 secondes après avoir passé en mode UTI
+
+    - choose:
+        # Démarrer la charge pendant les heures creuses
+        - conditions:
+            - condition: template
+              value_template: "{{ states('sensor.linky_relais') == '1' }}"
+            - condition: template
+              value_template: "{{ states('sensor.fl995hk_batterie') | float < states('input_number.zoe_coupure_pourcentage') | float }}"
+            - condition: template
+              value_template: "{{ not is_state('sensor.chargeurvoiture_status', 'Charging') }}"
+          sequence:
+            - service: select.select_option
+              data:
+                entity_id: select.chargeurvoiture_toggle_charging
+                option: "Start charging"
+
+        # Arrêter la charge si la batterie est au-dessus du seuil
+        - conditions:
+            - condition: template
+              value_template: "{{ states('sensor.linky_relais') == '1' }}"
+            - condition: template
+              value_template: "{{ states('sensor.fl995hk_batterie') | float >= states('input_number.zoe_coupure_pourcentage') | float }}"
+            - condition: template
+              value_template: "{{ is_state('sensor.chargeurvoiture_status', 'Charging') }}"
+          sequence:
+            - service: select.select_option
+              data:
+                entity_id: select.chargeurvoiture_toggle_charging
+                option: "Stop charging"
+
+        # Arrêter la charge pendant les heures pleines
+        - conditions:
+            - condition: template
+              value_template: "{{ states('sensor.linky_relais') == '0' }}"  # Heures pleines
+            - condition: template
+              value_template: "{{ is_state('sensor.chargeurvoiture_status', 'Charging') }}"
+          sequence:
+            - service: select.select_option
+              data:
+                entity_id: select.chargeurvoiture_toggle_charging
+                option: "Stop charging"
+            - delay:
+                seconds: 10
+
+            # Passer en mode SBU si la batterie de la maison est supérieure à 30%
+            - choose:
+                - conditions:
+                    - condition: template
+                      value_template: "{{ states('sensor.voltronic_1_batt_battery') | float > 30 }}"
+                  sequence:
+                    - delay:
+                        seconds: 30  # Attendre 30 secondes avant de passer en mode SBU
+                    - service: select.select_option
+                      data:
+                        entity_id: select.voltronic_1_param01
+                        option: "SBU"  # Passer en mode SBU (batterie)
+
+    # Nouvelle condition ajoutée pour arrêter la charge en dehors des heures creuses
+    - conditions:
+        - condition: template
+          value_template: "{{ states('sensor.linky_relais') == '0' }}"  # Vérifie que ce ne sont pas les heures creuses
+        - condition: state
+          entity_id: sensor.chargeurvoiture_status
+          state: 'Charging'
+      sequence:
+        - service: select.select_option
+          data:
+            entity_id: select.chargeurvoiture_toggle_charging
+            option: "Stop charging"
+
+
+
+
+
+##################### Mode "Solaire" : Gestion basée sur la production solaire###################################
+        - conditions:
+            - condition: template
+              value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'Solar') }}"
           sequence:
             - choose:
                 # Vérifier si on est dans la période solaire autorisée
@@ -142,10 +222,10 @@
                           # Attend un changement de la puissance solaire
                           - wait_for_trigger:
                               - platform: state
-                                entity_id: sensor.combined_power_pylontech
+                                entity_id: sensor.combined_power_pylontech_voltronic
                           # Définition des variables locales
                           - variables:
-                              power: "{{ states('sensor.combined_power_pylontech') | float }}" # Puissance solaire disponible
+                              power: "{{ states('sensor.combined_power_pylontech_voltronic') | float }}" # Puissance solaire disponible
                               current: "{{ states('input_number.chargeurvoiture_set_charge_current') | float }}" # Courant de charge actuel
                           - choose:
                               # Si la puissance est négative (consommation supérieure à la production)
@@ -195,7 +275,7 @@
                                               entity_id: input_number.chargeurvoiture_set_charge_current
                                               value: "{{ current + 1 }}"
                           # Attendre 5 secondes avant la prochaine vérification
-                          - delay: "00:00:05"
+                          - delay: "00:00:07"
                 # Si on est en dehors de la période solaire autorisée
                 - conditions:
                     - condition: not
@@ -215,7 +295,7 @@
                         entity_id: select.chargeurvoiture_toggle_charging
                         option: "Stop charging"
 
-        # Mode "Off" : Arrêt de la charge
+###################### Mode "Off" : Arrêt de la charge meme si quelqu'un ce branche
         - conditions:
             - condition: template
               value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'Off') }}"
