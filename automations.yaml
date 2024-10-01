@@ -1,3 +1,16 @@
+- id: sync_charge_current_with_virtual
+  alias: "Sync Charge Current with Virtual"
+  trigger:
+    - platform: state
+      entity_id: input_number.chargeurvoiture_set_chargevirtuel_current
+  condition: []
+  action:
+    - service: script.adjust_charge_current
+      data:
+        target_value: "{{ trigger.to_state.state | float }}"
+
+
+
 # Automatisation pour la gestion de la charge de la voiture électrique Zoé
 - id: Gestion_de_la_charge_Zoe
   alias: "Gestion de la charge Zoe"
