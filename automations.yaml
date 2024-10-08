@@ -246,21 +246,21 @@
                                       entity_id: input_number.chargeurvoiture_set_chargevirtuel_current
                                       value: "{{ current - 1 }}"
                               # Si le courant est déjà à 8A, on attend 30 secondes et revérifie
-         #                     - conditions:
-          #                        - condition: template
-           #                         value_template: "{{ current == 8 }}"
-            #                    sequence:
-             #                     - delay: "00:00:30"
-              #                    - choose:
-               #                       - conditions:
-                #                          - condition: numeric_state
-                 #                           entity_id: sensor.combined_power_pylontech_voltronic
-                  #                          below: -20
-                   #                     sequence:
-                    #                      - service: select.select_option
-                     #                       data:
-                      #                        entity_id: select.chargeurvoiture_toggle_charging
-                       #                       option: "Stop charging"
+                   #           - conditions:
+                    #              - condition: template
+                     #               value_template: "{{ current == 8 }}"
+                      #          sequence:
+                       #           - delay: "00:00:30"
+                        #          - choose:
+                         #             - conditions:
+                          #                - condition: numeric_state
+                           #                 entity_id: sensor.combined_power_pylontech_voltronic
+                            #                below: -10
+                             #           sequence:
+                              #            - service: select.select_option
+                               #             data:
+                                #              entity_id: select.chargeurvoiture_toggle_charging
+                                 #             option: "Stop charging"
 
 
                       # Si la puissance est suffisante (plus de 0A)
@@ -281,22 +281,22 @@
                   # Attendre 7 secondes avant la prochaine vérification
                   - delay: "00:00:05"
             # Si on est en dehors de la période solaire autorisée ou la puissance est insuffisante
-            - choose:
-                - conditions:
-                    - condition: or
-                      conditions:
-                        - condition: numeric_state
-                          entity_id: sensor.combined_power_pylontech_voltronic
-                          below: -30  # Vérifie si la production est insuffisante
-                        - condition: state
-                          entity_id: sensor.chargeurvoiture_status
-                          state: 'Charging'
-                  sequence:
-                    # Arrêter la charge
-                    - service: select.select_option
-                      data:
-                        entity_id: select.chargeurvoiture_toggle_charging
-                        option: "Stop charging"
+  #          - choose:
+  #              - conditions:
+   #                 - condition: or
+    #                  conditions:
+     #                   - condition: numeric_state
+      #                    entity_id: sensor.combined_power_pylontech_voltronic
+       #                   below: -30  # Vérifie si la production est insuffisante
+        #                - condition: state
+         #                 entity_id: sensor.chargeurvoiture_status
+          #                state: 'Charging'
+           #       sequence:
+            #        # Arrêter la charge
+             #       - service: select.select_option
+              #        data:
+               #         entity_id: select.chargeurvoiture_toggle_charging
+                #        option: "Stop charging"
 
         ###################### Mode "Off" : Arrêt de la charge même si quelqu'un se branche ####################
         - conditions:
