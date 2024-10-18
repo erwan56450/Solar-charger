@@ -1,4 +1,6 @@
 # https://youtu.be/NQe61K7PITc
+# code écrit pour piloter un charger chinois de voiture elec https://fr.aliexpress.com/item/1005005504929776.html?spm=a2g0o.order_list.order_list_main.41.121e5e5bxzzMkQ&gatewayAdapt=glo2fra
+
 
 # ==============================================================================
 # Paramètres de Configuration - À Adapter Selon Votre Installation
@@ -118,7 +120,7 @@
                     - service: select.select_option
                       data:
                         entity_id: select.voltronic_1_param01
-                        option: "UTI"  # Passer en mode UTI (GRID)
+                        option: "UTI"  # Passer l'onduleur de baterrie a reseau(GRID) en mode UTI 
                     - delay:
                         seconds: 30  # Attendre 30 secondes après avoir passé en mode UTI
 
