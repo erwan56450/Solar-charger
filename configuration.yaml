@@ -1,14 +1,24 @@
 # Voiture électrique
-## créé un slider pour régler la charge maximum de la baterrie voiture
+## crer des boutons pour régler la charge
+
 input_number:
-  zoe_coupure_pourcentage:
+
+  ve_coupure_pourcentage:
     name: Coupure Pourcentage
     initial: 90
-    min: 40
+    min: 10
     max: 100
     step: 1
     unit_of_measurement: '%'
-## créé un slider Virtuel pour commender le slider de chargeur Tuya
+    
+  ve_demarage_solaire:
+    name: Coupure Pourcentage
+    initial: 50
+    min: 30
+    max: 90
+    step: 2
+    unit_of_measurement: '%'
+
   chargeurvoiture_set_chargevirtuel_current:
     name: Set Charge Virtuel Current
     initial: 8
@@ -16,13 +26,14 @@ input_number:
     max: 32
     step: 1
     unit_of_measurement: 'A'
-## créer un bouton de selection  ON OFF SOLAIRE HC
+    
 input_select:
   selecteurchargeurve:
     name: Selecteur Chargeur VE
     options:
-      - 'On'
-      - 'Solaire'
+      - 'On No Limits'
+      - 'On Limited'
+      - 'Solar'
       - 'Heures-Creuses'
       - 'Off'
     initial: 'Off'
