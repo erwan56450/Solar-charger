@@ -1,0 +1,20 @@
+  #A ajouter dans un carte homeassistant pour afficher les bouton utiles
+
+
+type: entities
+entities:
+  - entity: input_number.ve_coupure_pourcentage
+    name: hc/hp Charge maxi Ve
+    icon: mdi:car-battery
+  - entity: input_number.chargeurvoiture_set_chargevirtuel_current
+    name: Ampérage de charge ralenti
+    icon: mdi:current-ac
+  - entity: input_number.ve_demarage_solaire
+    name: Seuil maison démarrage VE
+    icon: mdi:solar-power
+  - entity: input_select.selecteurchargeurve
+    name: Sélecteur de charge
+    icon: mdi:car-electric
+title: Chargeur Voitre
+state_color: true
+show_header_toggle: true
