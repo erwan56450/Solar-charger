@@ -8,12 +8,12 @@
 # Remplacez les entités ci-dessous par celles correspondant à votre installation a l'aide de CTL-F > Remplacer TExt par autre text
 
 #####sensors:
-# sensor.fl995hk_batterie                       # Niveau de batterie de la Zoé
-# sensor.chargeurvoiture_status                 # Statut du chargeur de la voiture
-# sensor.combined_power_pylontech_voltronic     # Puissance solaire disponible
+# sensor.fl995hk_batterie                       # Niveau de batterie de la voiture
+# sensor.chargeurvoiture_status                 # Statut du chargeur de la borne de charge
+# sensor.combined_power_pylontech_voltronic     # Amperage de charge ou décharge de la batterie maison
 # sensor.combined_battery_soc                   # État de charge de la batterie maison
-# sensor.linky_relais                           # Statut du relais Linky (heures creuses)
-# sensor.voltronic_1_batt_battery               # Niveau de charge de la batterie maison
+# sensor.linky_relais                           # Statut du relais Linky  pour déclancher les heures creuses
+# sensor.pince_amp_onduleur_power_a             # puissance soutiré a l'onduleur en watt je limite le conso a 8000w
 
 #####Entités de Sélection
 # select_chargeur_toggle:
@@ -24,10 +24,10 @@
 #parametre onduleur pour passer GRID ou BATTERIE:
 # select.voltronic_1_param01               # Sélecteur pour changer le mode
 # options du mod
-#    - "UTI"  # GRID
-#    - "SBU"  # Batterie
+#    - "UTI"  # GRID/reseau
+#    - "SBU"  # Batterie maison
 
-# Commande le bouton de l'ampérage de charge de la borne via le bouton "virtuel" à travers le script .
+# Commande le bouton de l'ampérage de charge de la borne via le bouton "virtuel" à travers le script "adjust_charge_current" .
 - id: sync_charge_current_with_virtual
   alias: "Sync Charge Current with Virtual"
   trigger:
@@ -42,17 +42,20 @@
 
 
 
+##################################################################################################
+################################  debut du code de charge   ######################################
+##################################################################################################
 
 
 # Automatisation pour la gestion de la charge de la voiture électrique 
-- id: Gestion_de_la_charge_Zoe
+- id: Gestion_de_la_charge_ve
   alias: "Gestion de la charge voiture électrique"
   trigger:
     # Déclencheurs pour tous les modes (se déclenche lorsque l'un des états change)
     - platform: state
       entity_id:
         - sensor.fl995hk_batterie
-        - input_number.zoe_coupure_pourcentage
+        - input_number.ve_coupure_pourcentage
         - sensor.chargeurvoiture_status
         - input_select.SelecteurChargeurVE
         - sensor.combined_power_pylontech_voltronic
@@ -62,7 +65,7 @@
   condition: []
   action:
     - choose:
-        ################### Mode "On No Limits" : Démarrage immédiat de la charge, sans aucune réserve ###################
+################### Mode "On No Limits" : Démarrage immédiat de la charge, sans aucune réserve ###################
         - conditions:
             - condition: template
               value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'On No Limits') }}"
@@ -73,7 +76,7 @@
                 entity_id: select.chargeurvoiture_toggle_charging
                 option: "Start charging"
 
-        ################## Mode "On Limited" : Démarrage de la charge et arrêt en fonction du pourcentage de la batterie ##################
+################## Mode "On Limited" : Démarrage de la charge et arrêt en fonction du pourcentage de la batterie ##################
         - conditions:
             - condition: template
               value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'On Limited') }}"
@@ -82,7 +85,7 @@
                 # Démarrer la charge si la batterie de la Zoé est sous le seuil défini
                 - conditions:
                     - condition: template
-                      value_template: "{{ states('sensor.fl995hk_batterie') | float < states('input_number.zoe_coupure_pourcentage') | float }}"
+                      value_template: "{{ states('sensor.fl995hk_batterie') | float < states('input_number.ve_coupure_pourcentage') | float }}"
                     - condition: template
                       value_template: "{{ not is_state('sensor.chargeurvoiture_status', 'Charging') }}"
                   sequence:
@@ -95,7 +98,7 @@
                 # Si la batterie de la Zoé dépasse le seuil défini, arrêter la charge
                 - conditions:
                     - condition: template
-                      value_template: "{{ states('sensor.fl995hk_batterie') | float >= states('input_number.zoe_coupure_pourcentage') | float }}"
+                      value_template: "{{ states('sensor.fl995hk_batterie') | float >= states('input_number.ve_coupure_pourcentage') | float }}"
                     - condition: template
                       value_template: "{{ is_state('sensor.chargeurvoiture_status', 'Charging') }}"
                   sequence:
@@ -106,12 +109,15 @@
                         entity_id: select.chargeurvoiture_toggle_charging
                         option: "Stop charging"
 
-        ################### Mode "Heures-Creuses" : Gestion pendant les heures creuses ###################
+################### Mode "Heures-Creuses" : démarre la charge en heures creuses, bascule l'onduleur de batterie à réseau, stoppe en fonction du % voiture ###################
         - conditions:
             - condition: template
               value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'Heures-Creuses') }}"
           sequence:
             - choose:
+            
+            
+                # Vérifie que c'est les heures creuses et passe l'onduleur en mode UTI
                 - conditions:
                     - condition: template
                       value_template: "{{ states('sensor.linky_relais') == '1' }}"  # Vérifie que c'est les heures creuses
@@ -122,14 +128,13 @@
                         option: "UTI"  # Passer en mode UTI (GRID)
                     - delay:
                         seconds: 30  # Attendre 30 secondes après avoir passé en mode UTI
-
-            - choose:
+        
                 # Démarrer la charge pendant les heures creuses
                 - conditions:
                     - condition: template
-                      value_template: "{{ states('sensor.linky_relais') == '1' }}"
+                      value_template: "{{ states('sensor.linky_relais') == '1' }}"   # Peut être remplacé par des horaires
                     - condition: template
-                      value_template: "{{ states('sensor.fl995hk_batterie') | float < states('input_number.zoe_coupure_pourcentage') | float }}"
+                      value_template: "{{ states('sensor.fl995hk_batterie') | float < states('input_number.ve_coupure_pourcentage') | float }}"
                     - condition: template
                       value_template: "{{ not is_state('sensor.chargeurvoiture_status', 'Charging') }}"
                   sequence:
@@ -137,13 +142,13 @@
                       data:
                         entity_id: select.chargeurvoiture_toggle_charging
                         option: "Start charging"
-
-                # Arrêter la charge si la batterie est au-dessus du seuil
+        
+                # Arrêter la charge si la batterie est au-dessus du seuil % défini par notre bouton
                 - conditions:
                     - condition: template
                       value_template: "{{ states('sensor.linky_relais') == '1' }}"
                     - condition: template
-                      value_template: "{{ states('sensor.fl995hk_batterie') | float >= states('input_number.zoe_coupure_pourcentage') | float }}"
+                      value_template: "{{ states('sensor.fl995hk_batterie') | float >= states('input_number.ve_coupure_pourcentage') | float }}"
                     - condition: template
                       value_template: "{{ is_state('sensor.chargeurvoiture_status', 'Charging') }}"
                   sequence:
@@ -151,7 +156,7 @@
                       data:
                         entity_id: select.chargeurvoiture_toggle_charging
                         option: "Stop charging"
-
+        
                 # Arrêter la charge pendant les heures pleines
                 - conditions:
                     - condition: template
@@ -163,22 +168,19 @@
                       data:
                         entity_id: select.chargeurvoiture_toggle_charging
                         option: "Stop charging"
-                    - delay:
-                        seconds: 10
-
-                    # l'onduleur Passer en mode SBU (mode baterrie) si la batterie de la maison est supérieure à 40%
+                    - delay: "00:00:10"
+        
+                    # L'onduleur repasser en mode SBU (mode batterie) si la batterie de la maison est supérieure à 40%
                     - choose:
                         - conditions:
                             - condition: template
-                              value_template: "{{ states('sensor.voltronic_1_batt_battery') | float > 40 }}"
+                              value_template: "{{ states('sensor.combined_battery_soc') | float > 40 }}"
                           sequence:
-                            - delay:
-                                seconds: 30  # Attendre 30 secondes avant de passer en mode SBU
                             - service: select.select_option
                               data:
                                 entity_id: select.voltronic_1_param01
                                 option: "SBU"  # Passer en mode SBU (batterie)
-
+        
             # Arrêter la charge en dehors des heures creuses
             - choose:
                 - conditions:
@@ -193,15 +195,20 @@
                         entity_id: select.chargeurvoiture_toggle_charging
                         option: "Stop charging"
 
+
         ##################### Mode "Solaire" : Gestion basée sur la production solaire ##############################################################
         - conditions:
+            #vérifi si le bouton est sur solaire
             - condition: template
-              value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'Solar') }}" #vérifi si le bouton est sur solaire
-            - condition: numeric_state
-              entity_id: sensor.combined_battery_soc
-              above: 30  #verifi le % batterie
+              value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'Solar') }}" 
+              
+            # regarde partir de quel % batterie maison  la charge de la voiture dois commencer  
             - condition: template
-              value_template: "{{ is_state('sensor.voltronic_1_mode_info', 'solaire') }}"  # Vérifie si l'onduleur est en mode "solaire" et pas Grid
+              value_template: "{{ states('sensor.combined_battery_soc') | float > states('input_number.ve_demarage_solaire') | float }}" 
+              
+            # Vérifie si l'onduleur est en mode "solaire" et pas reseau (Grid)  
+            - condition: template
+              value_template: "{{ is_state('sensor.voltronic_1_mode_info', 'solaire') }}"  
 
 
           sequence:
@@ -217,9 +224,9 @@
                     # Démarrer la charge
                     - service: input_number.set_value
                       data:
-                        entity_id: input_number.chargeurvoiture_set_chargevirtuel_current
+                        entity_id: input_number.chargeurvoiture_set_chargevirtuel_current #passe l'amperage de charge a 8 pour démarer petit
                         value: 8
-                    - delay: "00:00:10"  # Ajoute un timer de 10 secondes , laisse le temps au chargeur de changer la valeur
+                    - delay: "00:00:20"  # Ajoute un timer de 10 secondes , laisse le temps au chargeur de changer la valeur A
                     - service: select.select_option
                       data:
                         entity_id: select.chargeurvoiture_toggle_charging
@@ -243,12 +250,12 @@
 
                 sequence:
 
-                  # Vérifier si la batterie est à 50 % ou plus
+                  # Vérifier si la batterie maison
                   - choose:
                       - conditions:
                           - condition: numeric_state
                             entity_id: sensor.combined_battery_soc
-                            below: 30  # Si la batterie tombe en dessous de 50 %
+                            below: 30  # Si la batterie tombe en dessous de X
                         sequence:
                           - service: select.select_option
                             data:
@@ -256,7 +263,7 @@
                               option: "Stop charging"
                           - service: persistent_notification.create
                             data:
-                              message: "La charge de la voiture a été arrêtée car la batterie Maison est en dessous de 50 %."
+                              message: "La charge de la voiture a été arrêtée car la batterie Maison est Faible."
                               title: "Arrêt de la charge de la voiture"
                               notification_id: "voiture_charge_batterie_basse"
                               
@@ -302,6 +309,16 @@
                             value_template: "{{ states('sensor.combined_power_pylontech_voltronic') | float < -5 }}"
                         sequence:
                           - choose:
+                              # Si la puissance de l'onduleur est supérieure à 8000w, diminuer le courant de 3A
+                              - conditions:
+                                  - condition: numeric_state
+                                    entity_id: sensor.pince_amp_onduleur_power_a
+                                    above: 8000
+                                sequence:
+                                  - service: number.set_value
+                                    data:
+                                      entity_id: number.chargeurvoiture_set_charge_current
+                                      value: "{{ current - 3 }}"
                           
                               # Si la puissance est inférieure à -21, diminuer le courant de 3A et si le courant est superieur a 11amp
                               - conditions:
@@ -340,7 +357,7 @@
                                       sequence:
                                         - delay: "00:00:15"
                                         - choose:
-                                            # Si la puissance est toujours inférieure à X apres 10secs, arrêter la charge
+                                            # Si la puissance est toujours inférieure à X Amp apres X secs, arrêter la charge
                                             - conditions:
                                                 - condition: numeric_state
                                                   entity_id: sensor.combined_power_pylontech_voltronic
@@ -352,10 +369,14 @@
                                                     option: "Stop charging"
                                                 - service: persistent_notification.create
                                                   data:
-                                                    message: "La charge de la voiture a été arrêtée au moins 5 minutes en raison d'une production solaire insuffisante."
+                                                    message: "La charge de la voiture a été arrêtée  en raison d'une production solaire insuffisante."
                                                     title: "Arrêt de la charge de la voiture"
                                                     notification_id: "voiture_charge_arret"
-                                                - delay: "00:01:00"
+                                                - delay: "00:01:00"  # timer pour ne pas relancer de suite la charge
+                                                
+                                                
+
+
 
                       # Si la puissance est supérieure ou égale à 10 A et que la baterrie est sous les 98%
                       - conditions:
@@ -364,6 +385,9 @@
                           - condition: numeric_state
                             entity_id: sensor.combined_battery_soc
                             below: 98  #verifi le % batterie
+                          - condition: numeric_state
+                            entity_id: sensor.pince_amp_onduleur_power_a
+                            below: 8000
                         sequence:
                           - choose:
                               # Si le courant est inférieur à 32A, on l'augmente de 5A
@@ -376,13 +400,17 @@
                                       entity_id: number.chargeurvoiture_set_charge_current
                                       value: "{{ current + 1 }}"
                                       
-                      # Si la puissance est supérieure ou égale à -10A et que la baterrie est au dessus de 98%
+                      # Si la puissance est supérieure ou égale à -10A et que la baterrie est au dessus de 98% 
+                      #Et oui quand la baterrie maison est chargée l'amperage ne passe plus dans le positif il faut donc forcer
                       - conditions:
                           - condition: template
                             value_template: "{{ states('sensor.combined_power_pylontech_voltronic') | float >= -10 }}"
                           - condition: numeric_state
                             entity_id: sensor.combined_battery_soc
                             above: 97  #verifi le % batterie
+                          - condition: numeric_state
+                            entity_id: sensor.pince_amp_onduleur_power_a
+                            below: 8000
                         sequence:
                           - choose:
                               # Si le courant est inférieur à 32A, on l'augmente de 5A
@@ -411,7 +439,7 @@
                 - conditions:
                     - condition: state
                       entity_id: sensor.chargeurvoiture_status
-                      state: ['Charging', 'Connected']
+                      state: ['Charging', 'Connected']   #detecte le status chargin ou connected 
                   sequence:
                     - service: select.select_option
                       data:
