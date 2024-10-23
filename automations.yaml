@@ -61,6 +61,7 @@
         - sensor.combined_power_pylontech_voltronic
         - sensor.combined_battery_soc
         - number.chargeurvoiture_set_charge_current
+        - sensor.pince_amp_onduleur_power_a
 
   condition: []
   action:
@@ -147,7 +148,7 @@
                     - condition: template
                       value_template: "{{ states('sensor.linky_relais') == '1' }}"  # Vérifie que c'est les heures creuses
                     - condition: template
-                      value_template: "{{ not is_state('select.voltronic_1_param01', 'UTI') }}"  # Vérifie que l'onduleur n'est pas déjà en mode UTI
+                      value_template: "{{ is_state('sensor.voltronic_1_mode_info', 'solaire') }}"  # Vérifie que l'onduleur est sur le mode solaire
                   sequence:
                     - service: select.select_option
                       data:
@@ -162,7 +163,7 @@
                     - condition: template
                       value_template: "{{ states('sensor.fl995hk_batterie') | float < states('input_number.ve_coupure_pourcentage') | float }}" # vérifi que le % de charge n'est pas attend
                     - condition: template
-                      value_template: "{{ state('sensor.chargeurvoiture_status', 'Charged') }}"  #la voiture est brnaché et attendre d'etre chargée
+                      value_template: "{{ is_state('sensor.chargeurvoiture_status', 'Charged') }}"  #la voiture est brnaché et attendre d'etre chargée
                   sequence:
                     - service: select.select_option
                       data:
@@ -186,7 +187,7 @@
                     - choose:
                         - conditions:
                             - condition: template
-                              value_template: "{{ states('sensor.combined_battery_soc') | float > 40 }}"
+                              value_template: "{{ states('sensor.combined_battery_soc') | float > 30 }}"
                           sequence:
                             - service: select.select_option
                               data:
@@ -211,7 +212,7 @@
                     - choose:
                         - conditions:
                             - condition: template
-                              value_template: "{{ states('sensor.combined_battery_soc') | float > 40 }}"
+                              value_template: "{{ states('sensor.combined_battery_soc') | float > 30 }}"
                           sequence:
                             - service: select.select_option
                               data:
