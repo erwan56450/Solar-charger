@@ -1,18 +1,18 @@
-  #A ajouter dans un carte homeassistant pour afficher les bouton utiles
+  # a ajouter dans une carte homeassistant pour afficher les boutons utiles
 
 
 type: entities
 entities:
-  - entity: input_number.ve_coupure_pourcentage
-    name: hc/hp Charge maxi Ve
+  - entity: input_number.ve_coupure_pourcentage  # a quel % batterie voiture  la chargé est stopé en mode HC ou en mode On limited
+    name: hc Charge maxi Ve
     icon: mdi:car-battery
-  - entity: input_number.chargeurvoiture_set_chargevirtuel_current
+  - entity: input_number.chargeurvoiture_set_chargevirtuel_current   #c'est une copie du bouton set charge current de la borne , mais celui ci sert a piloter set charge curent au traver du script qui reduit  la vitesse des dessente de puissance
     name: Ampérage de charge ralenti
     icon: mdi:current-ac
-  - entity: input_number.ve_demarage_solaire
+  - entity: input_number.ve_demarage_solaire # bouton pour régler a quel %  de batterie maison la charge solaire de la voiture peux commencer.
     name: Seuil maison démarrage VE
     icon: mdi:solar-power
-  - entity: input_select.selecteurchargeurve
+  - entity: input_select.selecteurchargeurve  #bouton pour choisir le mode (si vous changer les noms, il faut aussi les modifier dans le code)
     name: Sélecteur de charge
     icon: mdi:car-electric
 title: Chargeur Voitre
