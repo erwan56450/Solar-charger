@@ -3,7 +3,7 @@
 
 input_number:
 
-  ve_coupure_pourcentage:
+  ve_coupure_pourcentage: #a quel % batterie voiture  la chargé est stopé en mode HC ou en mode On limited
     name: Coupure Pourcentage
     initial: 90
     min: 10
@@ -11,7 +11,7 @@ input_number:
     step: 1
     unit_of_measurement: '%'
     
-  ve_demarage_solaire:
+  ve_demarage_solaire: # bouton pour régler a quel %  de batterie maison la charge solaire de la voiture peux commencer.pour moi il n'est pas pertinent d'attendre 100% baterrie maison, car j'ai 13kwc de panneaux solaire
     name: Coupure Pourcentage
     initial: 50
     min: 30
@@ -19,7 +19,7 @@ input_number:
     step: 2
     unit_of_measurement: '%'
 
-  chargeurvoiture_set_chargevirtuel_current:
+  chargeurvoiture_set_chargevirtuel_current: #  #c'est une copie du bouton set charge current de la borne , mais celui ci sert a piloter set charge curent au traver du script qu'il reduit  la vitesse des dessente de puissance
     name: Set Charge Virtuel Current
     initial: 8
     min: 8
@@ -27,7 +27,7 @@ input_number:
     step: 1
     unit_of_measurement: 'A'
     
-input_select:
+input_select:   #bouton pour choise le mode (si vous changer les noms, il faut aussi les modifier dans le code)
   selecteurchargeurve:
     name: Selecteur Chargeur VE
     options:
