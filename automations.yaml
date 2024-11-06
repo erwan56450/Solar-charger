@@ -84,7 +84,7 @@
         - conditions:
             - condition: state
               entity_id: sensor.chargeurvoiture_status
-              state: "Disconnected"  # Vérifie si la voiture est déconnectée
+              state: "available"  # Vérifie si la voiture est déconnectée
             - condition: template
               value_template: "{{ not is_state('input_select.SelecteurChargeurVE', 'Off') }}"  # Vérifie que le sélecteur n'est pas sur "Off"
           sequence:
@@ -100,7 +100,7 @@
             - condition: template
               value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'On No Limits') }}"
             - condition: template
-              value_template: "{{ not is_state('sensor.chargeurvoiture_status', 'Disconnected') }}" #si le status est autre que disconnected
+              value_template: "{{ not is_state('sensor.chargeurvoiture_status', 'available') }}" #si le status est autre que available
           sequence:
             # Démarre la charge de la Zoé
             - service: select.select_option
@@ -114,7 +114,7 @@
             - condition: template
               value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'On Limited') }}"
             - condition: template
-              value_template: "{{ not is_state('sensor.chargeurvoiture_status', 'Disconnected') }}" #si le status est autre que disconnected
+              value_template: "{{ not is_state('sensor.chargeurvoiture_status', 'available') }}" #si le status est autre que available
           sequence:
             - choose:
                 # Démarrer la charge si la batterie de la Zoé est sous le seuil défini
@@ -153,7 +153,7 @@
             - condition: template
               value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'Heures-Creuses') }}"
             - condition: template
-              value_template: "{{ not is_state('sensor.chargeurvoiture_status', 'Disconnected') }}" #si le status est autre que disconnected
+              value_template: "{{ not is_state('sensor.chargeurvoiture_status', 'available') }}" #si le status est autre que available
           sequence:
             - choose:
                 # Vérifie que c'est les heures creuses et passe l'onduleur en mode UTI
@@ -217,6 +217,11 @@
                     - service: select.select_option
                       data:
                         entity_id: select.chargeurvoiture_toggle_charging
+                        option: "start charging"
+                    - delay: "00:00:03"
+                    - service: select.select_option
+                      data:
+                        entity_id: select.chargeurvoiture_toggle_charging
                         option: "Stop charging"
                     - delay: "00:00:30"
  
@@ -239,9 +244,9 @@
             - condition: template
               value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'Solar') }}" 
               
-              #si le status est autre que disconnected
+              #si le status est autre que available
             - condition: template
-              value_template: "{{ not is_state('sensor.chargeurvoiture_status', 'Disconnected') }}" 
+              value_template: "{{ not is_state('sensor.chargeurvoiture_status', 'available') }}" 
               
             # regarde a partir de quel % batterie maison  la charge de la voiture doit commencer  
             - condition: template
@@ -499,8 +504,13 @@
                 - conditions:
                     - condition: state
                       entity_id: sensor.chargeurvoiture_status
-                      state: ['Charging', 'Connected']   #detecte le status chargin ou connected 
+                      state: ['Charging', 'plugged_in']   #detecte le status chargin ou plugged_in 
                   sequence:
+                    - service: select.select_option
+                      data:
+                        entity_id: select.chargeurvoiture_toggle_charging
+                        option: "start charging"
+                    - delay: "00:00:03"
                     - service: select.select_option
                       data:
                         entity_id: select.chargeurvoiture_toggle_charging
@@ -512,22 +522,23 @@
             - condition: template
               value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'Off') }}"
             - condition: template
-              value_template: "{{ not is_state('sensor.chargeurvoiture_status', 'Disconnected') }}" #si le status est autre que disconnected
+              value_template: "{{ not is_state('sensor.chargeurvoiture_status', 'available') }}" #si le status est autre que available
           sequence:
             - choose:
                 # Si la voiture est en charge, on arrête la charge
                 - conditions:
                     - condition: state
                       entity_id: sensor.chargeurvoiture_status
-                      state: ['Charging', 'Connected']   #detecte le status chargin ou connected 
+                      state: ['charging', 'plugged_in']   #detecte le status chargin ou plugged_in 
                   sequence:
                     - service: select.select_option
                       data:
                         entity_id: select.chargeurvoiture_toggle_charging
+                        option: "Start charging"
+                    - delay: "00:00:03"
+                    - service: select.select_option
+                      data:
+                        entity_id: select.chargeurvoiture_toggle_charging
                         option: "Stop charging"
-
-
-
-                      
 
   mode: single  # Empêche l'automatisation de s'exécuter en parallèle
