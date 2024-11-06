@@ -218,7 +218,7 @@
                       data:
                         entity_id: select.chargeurvoiture_toggle_charging
                         option: "start charging"
-                    - delay: "00:00:03"
+                    - delay: "00:00:05"
                     - service: select.select_option
                       data:
                         entity_id: select.chargeurvoiture_toggle_charging
@@ -510,7 +510,7 @@
                       data:
                         entity_id: select.chargeurvoiture_toggle_charging
                         option: "start charging"
-                    - delay: "00:00:03"
+                    - delay: "00:00:05"
                     - service: select.select_option
                       data:
                         entity_id: select.chargeurvoiture_toggle_charging
@@ -535,7 +535,7 @@
                       data:
                         entity_id: select.chargeurvoiture_toggle_charging
                         option: "Start charging"
-                    - delay: "00:00:03"
+                    - delay: "00:00:05"
                     - service: select.select_option
                       data:
                         entity_id: select.chargeurvoiture_toggle_charging
