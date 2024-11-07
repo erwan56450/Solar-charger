@@ -176,7 +176,7 @@
                     - condition: template
                       value_template: "{{ states('sensor.fl995hk_batterie') | float < states('input_number.ve_coupure_pourcentage') | float }}" # vérifi que le % de charge n'est pas attend
                     - condition: template
-                      value_template: "{{ is_state('sensor.chargeurvoiture_status', 'Charged') }}"  #la voiture est brnaché et attendre d'etre chargée
+                      value_template: "{{ is_state('sensor.chargeurvoiture_status', 'charged') }}"  #la voiture est brnaché et attendre d'etre chargée
                   sequence:
                     - service: select.select_option
                       data:
@@ -238,7 +238,7 @@
                                 option: "SBU"  # Passer en mode SBU (batterie)
 
 
-        ##################### Mode "Solaire" : Gestion basée sur la production solaire, la voiture ne charge qu'avec le surplus solaire ##############################################################
+################### Mode "Solaire" : Gestion basée sur la production solaire, la voiture ne charge qu'avec le surplus solaire ##############################################################
         - conditions:
             #vérifi si le bouton est sur solaire
             - condition: template
