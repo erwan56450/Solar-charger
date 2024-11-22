@@ -1,4 +1,4 @@
-  # a ajouter dans une carte homeassistant pour afficher les boutons utiles
+  # a ajouter dans une carte interface homeassistant pour afficher les boutons utiles a l'automatisation
 
 
 type: entities
