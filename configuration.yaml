@@ -42,9 +42,13 @@ input_select:   #bouton pour choise le mode (si vous changer les noms, il faut a
     icon: mdi:toggle-switch
 
 
+#############################################################################################################################################################################################################################################################
+
 
 # pour que l'automatisation fonction il faut aussi rassembler les valeurs positif et netagtif de chaques onduleurs dans un seul sensor, moi j'ai 2 onduleurs donc 2 valeur Posiif et 2 negatifs , voici mon code 
+# deux option récupéré ca sur les onduleurs ou les batteries
 
+# exmple de code pour mes onduleurs 
 - platform: template
   sensors:
       combined_power_pylontech_voltronic:
@@ -56,3 +60,15 @@ input_select:   #bouton pour choise le mode (si vous changer les noms, il faut a
           {% set curr3 = - (states('sensor.voltronic_1_batt_decharge_intensite_current') | float(0)) %}  #pour mes onduleurs les valeur negatifs d'amperage ne sont affiché en positif (exemple -5amp, sera  5a) c'est pouquoi j'ai ajouter un (-) pour passer négatif
           {% set curr4 = - (states('sensor.voltronic_2_batt_decharge_intensite_current') | float(0)) %}
           {{ curr1 + curr2 + curr3 + curr4 }}
+
+
+# ou les batteries pylontech, rafraichisement plus lent 12sec
+- platform: template
+  sensors:
+    combined_power_pylontech:
+      friendly_name: "Puissance Combinée Pylontech"
+      unit_of_measurement: "A"
+      value_template: >-
+        {% set curr1 = states('sensor.pylontech1_pylontech_1_curr') | float(0) %}
+        {% set curr2 = states('sensor.pylontech2_pylontech_2_curr') | float(0) %}
+        {{ curr1 + curr2 }}
