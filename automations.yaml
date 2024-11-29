@@ -2,6 +2,15 @@
 # code écrit pour piloter un charger chinois de voiture elec https://fr.aliexpress.com/item/1005005504929776.html?spm=a2g0o.order_list.order_list_main.41.121e5e5bxzzMkQ&gatewayAdapt=glo2fra
 # Pilote aussi un onduleur pour panneaux solaire de marque WKS sur bas voltronic, avec un addon homeassistant smartphoton
 
+⚠️ Avertissement ⚠️
+Ce code est fourni sans garantie.
+Utilisation à vos propres risques.
+
+Je ne suis pas responsable des dysfonctionnements de Home Assistant ou de votre installation électrique.
+Votre système doit être capable de gérer les variations de production solaire et notament suporter 32amp de décharge sur batterie. Sinon, vous risquez d'endommager vos batteries si homeassistant plante.
+
+⚠️supprimer cette avertisement du code pour qu'il fonctionne⚠️
+
 # ==============================================================================
 # Paramètres de Configuration - À Adapter Selon Votre Installation
 # ==============================================================================
