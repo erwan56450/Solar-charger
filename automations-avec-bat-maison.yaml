@@ -23,21 +23,23 @@ Votre système doit être capable de gérer les variations de production solaire
 # sensor.combined_power_pylontech_voltronic     # Amperage de charge ou décharge de la batterie maison
 # sensor.combined_battery_soc                   # État de charge de la batterie maison
 # sensor.linky_relais                           # Statut du relais Linky  pour déclancher les heures creuses
-# sensor.onduleur_tongou_current             # puissance soutiré a l'onduleur en watt je limite le conso a 8000w
+# sensor.onduleur_tongou_current                # puissance soutiré a l'onduleur en watt je limite le conso a 9500w dans le code
 
 #####Entités de Sélection
-# select_chargeur_toggle:
-# entity_id: select.chargeurvoiture_toggle_charging   # Sélecteur pour démarrer/arrêter la charge
+#  select.chargeurvoiture_toggle_charging     #Si vous utiliser la meme borne que moi ne toucher pas a ca. c'est le bouton on/off par defaut
 # - "Start charging"
 # - "Stop charging"
 
-#parametre onduleur pour passer GRID ou BATTERIE:
-# select.voltronic_1_param01               # Sélecteur pour changer le mode reseau ou solaire de votre onduleur
-# options du mod
+# parametre onduleur pour passer GRID ou BATTERIE
+# Dans le mode HC le code force la passage de mon onduleur des batterie maison au reseau le selecteur est le suivant:
+# select.voltronic_1_param01
+# il ya deux options possible dans ce selecteur 
 #    - "UTI"  # GRID/reseau
 #    - "SBU"  # Batterie maison
 
-# Commande le bouton de l'ampérage de charge de la borne lentement  via le bouton "virtuel" à travers le script "adjust_charge_current" .
+
+# Commande le bouton de l'ampérage mais en ralentie. le bouton "virtuel" comande son jumeau réèl lui.
+# pour que ca fonction il faut aussi copier coller mon script sur gitub nomé "adjust_charge_current" et le coller dans votre script.yaml
 - id: sync_charge_current_with_virtual
   alias: "Sync Charge Current with Virtual"
   trigger:
@@ -48,6 +50,8 @@ Votre système doit être capable de gérer les variations de production solaire
     - service: script.adjust_charge_current
       data:
         target_value: "{{ trigger.to_state.state | float }}"
+        
+        
 
 # reste l'interupteur a 00h00 pour le message journalier de "la charge solaire a commencé"
 - id: reste_inter_message
@@ -73,7 +77,7 @@ Votre système doit être capable de gérer les variations de production solaire
 - id: Gestion_de_la_charge_ve
   alias: "Gestion de la charge voiture électrique"
   trigger:
-    # Déclencheurs pour tous les modes (se déclenche lorsque l'un des états change)
+    # Déclencheurs pour tous les modes ( lorsque l'un des états suivant change déclanche le code)
     - platform: state
       entity_id:
         - sensor.fl995hk_batterie
@@ -89,7 +93,7 @@ Votre système doit être capable de gérer les variations de production solaire
   action:
     - choose:
     
-################### Mode "Si déconnecté et sélecteur pas deja sur Off, passer automatiquement en mode Solar" ###################
+################### Mode "Si déconnecté" quand le borne est déconnecté et si le sélecteur n'est pas deja sur Off, passer automatiquement en mode Solar" ###################
         - conditions:
             - condition: state
               entity_id: sensor.chargeurvoiture_status
@@ -113,7 +117,7 @@ Votre système doit être capable de gérer les variations de production solaire
                 option: "Stop charging"
                 
                 
-################### Mode "On No Limits" : Démarrage immédiat de la charge, sans aucune réserve ###################
+################### Mode "On No Limits" : Démarrage immédiat de la charge, sans aucunes réstrictions ###################
         - conditions:
             - condition: template
               value_template: "{{ is_state('input_select.SelecteurChargeurVE', 'On No Limits') }}"
@@ -178,8 +182,10 @@ Votre système doit être capable de gérer les variations de production solaire
                 - conditions:
                     - condition: template
                       value_template: "{{ states('sensor.linky_relais') == '1' }}"  # Vérifie que c'est les heures creuses
+                      
                     - condition: template
                       value_template: "{{ is_state('sensor.voltronic_1_mode_info', 'solaire') }}"  # Vérifie que l'onduleur est sur le mode solaire
+                      
                   sequence:
                     - service: select.select_option
                       data:
@@ -201,7 +207,7 @@ Votre système doit être capable de gérer les variations de production solaire
                         entity_id: select.chargeurvoiture_toggle_charging
                         option: "Start charging"
         
-                # Arrêter la charge si la batterie est au-dessus du seuil % défini par le bouton
+                # Arrêter la charge si la batterie est au-dessus du seuil % défini par le bouton input_number.ve_coupure_pourcentage
                 - conditions:
                     - condition: template
                       value_template: "{{ states('sensor.fl995hk_batterie') | float >= states('input_number.ve_coupure_pourcentage') | float }}"
@@ -294,12 +300,12 @@ Votre système doit être capable de gérer les variations de production solaire
                       data:
                         entity_id: number.chargeurvoiture_set_charge_current #passe l'amperage de charge a 8 pour démarer petit
                         value: 8
-                    - delay: "00:00:20"  # Ajoute un timer , laisse le temps au chargeur de changer la valeur Amp
+                    - delay: "00:00:10"  # Ajoute un timer , laisse le temps au chargeur de changer la valeur Amp
                     - service: select.select_option
                       data:
                         entity_id: select.chargeurvoiture_toggle_charging
                         option: "Start charging"
-                    - delay: "00:00:20"  # Ajoute un timer pour laisser le temps a la charge de commencer
+                    - delay: "00:00:10"  # Ajoute un timer pour laisser le temps a la charge de commencer
                     
                     - choose: # Condition pour un  message uniquement /jour
                       - conditions:
@@ -364,7 +370,7 @@ Votre système doit être capable de gérer les variations de production solaire
                               notification_id: "borne_recharge_erreur"
 
 
-                  # Attend un changement de la puissance solaire
+                  # Attend un changement de la puissance solaire  , moi mon sensor Amperage rafréchit toutes les 10sec, si le votre est trop rapide il faudra plutot appliquer un  - delay: "00:00:10"
                   - wait_for_trigger:
                       - platform: state
                         entity_id: sensor.combined_power_pylontech_voltronic
@@ -375,7 +381,7 @@ Votre système doit être capable de gérer les variations de production solaire
                   - choose:
                   
                   
-                      # Diminue la puissance Si la puissance de l'onduleur est supérieure à 8000w, diminuer le courant de 3A
+                      # Diminue la puissance Si la puissance de l'onduleur est supérieure à 9500w, diminuer le courant de 3A
                       - conditions:
                           - condition: numeric_state
                             entity_id: sensor.onduleur_tongou_current
@@ -387,7 +393,7 @@ Votre système doit être capable de gérer les variations de production solaire
                               value: "{{ current - 3 }}"
                           - delay: "00:00:07"
 
-                      # Diminue la puissance Si la puissance est insuffisante 
+                      # Diminue la puissance de charge Si la puissance solaire est insuffisante 
                       - conditions:
                           - condition: template
                             value_template: "{{ states('sensor.combined_power_pylontech_voltronic') | float < -5 }}"
@@ -405,19 +411,19 @@ Votre système doit être capable de gérer les variations de production solaire
                                       title: "changemnet de mode detecté"
                                       notification_id: "mode_chargeur_changé"
                           
-                              # Si la puissance est inférieure à -21, diminuer le courant de 3A et si le courant est superieur a 11amp
+                              # Rapide, Si l'amperage batterie maison est inférieure à -21, diminuer le courant de charge de -3A seulement si c'est possible
                               - conditions:
                                   - condition: template
                                     value_template: "{{ states('sensor.combined_power_pylontech_voltronic') | float < -21 }}"
                                   - condition: template
-                                    value_template: "{{ current > 10 }}" # ont ne veut pas reduire de 3A si nous sommes a 9A
+                                    value_template: "{{ current > 10 }}" # ont ne peut pas reduire de 3A si nous sommes a 9A le mini etant 8A
                                 sequence:
                                   - service: number.set_value
                                     data:
                                       entity_id: number.chargeurvoiture_set_charge_current
                                       value: "{{ current - 3 }}"
                                       
-                              # Si la puissance est entre -20 et -5, diminuer le courant de 1A
+                              #Lent,  Si l'amperage batterie maison est entre -20 et -5, diminuer le courant de 1A
                               - conditions:
                                   - condition: template
                                     value_template: "{{ states('sensor.combined_power_pylontech_voltronic') | float >= -20 and states('sensor.combined_power_pylontech_voltronic') | float < -6 }}"
@@ -433,10 +439,10 @@ Votre système doit être capable de gérer les variations de production solaire
                                       value: "{{ current - 1 }}"
 
 
-                              # Boucle N2 ### Si le courant est déjà à 8A, on entre dans une nouvelle boucle
+                              ################## Boucle N2 ### Si le courant de charge est déjà à 8A, on entre dans une nouvelle boucle pour enventuelement stop la charge
                               - conditions:
                                   - condition: template
-                                    value_template: "{{ current <= 8 }}"
+                                    value_template: "{{ current <= 8 }}  # si le chargeur est 8A"
                                 sequence:
                                   - repeat:
                                       while:
@@ -444,15 +450,15 @@ Votre système doit être capable de gérer les variations de production solaire
                                           conditions:
                                             - condition: numeric_state
                                               entity_id: sensor.combined_power_pylontech_voltronic
-                                              below: -8
+                                              below: -8    # si la Lamperage tirer sur le batterie maison est de -8A
                                       sequence:
-                                        - delay: "00:01:00"
+                                        - delay: "00:01:00"    # Ont attend 1minutes au cas ou les nuage soit parti 
                                         - choose:
                                             # Si la puissance est toujours inférieure à X Amp apres X secs, arrêter la charge
                                             - conditions:
                                                 - condition: numeric_state
                                                   entity_id: sensor.combined_power_pylontech_voltronic
-                                                  below: -8
+                                                  below: -8     #si la batterie maison est toujours en décharge a -8amp alors on stop la charge 
                                               sequence:
                                                 - service: select.select_option
                                                   data:
@@ -463,13 +469,13 @@ Votre système doit être capable de gérer les variations de production solaire
                                                     message: "La charge de la voiture a été arrêtée  en raison d'une production solaire insuffisante."
                                                     title: "Arrêt de la charge de la voiture"
                                                     notification_id: "voiture_charge_arret"
-                                                - delay: "00:15:00"  # timer pour ne pas relancer de suite la charge
-                                ##fin de la boucle N2                
+                                                - delay: "00:15:00"  ####### timer pour ne pas relancer la charge de la voiture trop vite 
+                                ##################fin de la boucle N2                
                                                 
 
 
 
-                      # Augmente la puissance de charge si l'amperage de charge maison est supérieure ou égale à 10 A et que la baterrie est sous les 98%  
+                      # Augmente la puissance de charge si l'amperage de la batterie  maison est supérieure ou égale à 10 A et que la baterrie est sous les 98%  
                       - conditions:
                           - condition: template
                             value_template: "{{ states('sensor.combined_power_pylontech_voltronic') | float >= 10 }}"
@@ -478,10 +484,10 @@ Votre système doit être capable de gérer les variations de production solaire
                             below: 98  #verifi le % batterie
                           - condition: numeric_state
                             entity_id: sensor.onduleur_tongou_current
-                            below: 9500
+                            below: 9500 #verifi la consomation de ma maison en W et n'augement pas la charge voiture, si la puissance est deja atteinte
                         sequence:
                           - choose:
-                              # Si le courant est inférieur à 32A, on l'augmente de 5A
+                              # Si le courant est inférieur à 32A, on l'augmente de 1A
                               - conditions:
                                   - condition: template
                                     value_template: "{{ current < 32 }}"
@@ -491,20 +497,20 @@ Votre système doit être capable de gérer les variations de production solaire
                                       entity_id: number.chargeurvoiture_set_charge_current
                                       value: "{{ current + 1 }}"
                                       
-                      # Augmente la puissance de charge si  la baterrie est au dessus de 98% 
-                      # Et oui quand la baterrie maison est chargée l'amperage ne passe plus dans le positif il faut donc forcer
+                      # Augmente la puissance de charge voiture si  la baterrie est au DESSUS de 98%  et a -3Amp de décharge 
+                      # Et oui quand la baterrie maison est chargée l'amperage de celle ci ne passe plus dans le positif il faut donc forcer la charge voiture
                       - conditions:
                           - condition: template
                             value_template: "{{ states('sensor.combined_power_pylontech_voltronic') | float >= -3 }}"
                           - condition: numeric_state
                             entity_id: sensor.combined_battery_soc
-                            above: 97  #verifi le % batterie
+                            above: 97  #verifi le % batterie maison
                           - condition: numeric_state
                             entity_id: sensor.onduleur_tongou_current
-                            below: 9500
+                            below: 9500  #verifi la consomation de ma maison en W et n'augement pas la charge voiture, si la puissance est deja atteinte
                         sequence:
                           - choose:
-                              # Si le courant est inférieur à 32A, on l'augmente de 5A
+                              # Si le courant est inférieur à 32A, on l'augmente de 1A
                               - conditions:
                                   - condition: template
                                     value_template: "{{ current < 32 }}"
