@@ -7,7 +7,7 @@ Ce code est fourni sans garantie.
 Utilisation à vos propres risques.
 
 Je ne suis pas responsable des dysfonctionnements de Home Assistant ou de votre installation électrique.
-Votre système doit être capable de gérer les variations de production solaire et notament suporter 32amp de décharge sur batterie. Sinon, vous risquez d'endommager vos batteries si homeassistant plante.
+Votre système soalire doit être capable de gérer les variations de production solaire et notament suporter 32amp de décharge sur batterie. Sinon, vous risquez d'endommager vos batteries si homeassistant plante.
 
 ⚠️supprimer cette avertisement du code pour qu'il fonctionne⚠️
 
@@ -17,22 +17,24 @@ Votre système doit être capable de gérer les variations de production solaire
 
 # Remplacez les entités ci-dessous par celles correspondant à votre installation a l'aide de CTL-F > Remplacer TExt par autre text
 
-#####sensors:
+##### sensors:
 # sensor.fl995hk_batterie                       # Niveau de batterie de la voiture
 # sensor.chargeurvoiture_status                 # Statut du chargeur de la borne de charge
 # sensor.combined_power_pylontech_voltronic     # Amperage de charge ou décharge de la batterie maison
 # sensor.combined_battery_soc                   # État de charge de la batterie maison
 # sensor.linky_relais                           # Statut du relais Linky  pour déclancher les heures creuses
-# sensor.onduleur_tongou_current                # puissance soutiré a l'onduleur en watt je limite le conso a 9500w dans le code
+# sensor.onduleur_tongou_current                # puissance soutiré a l'onduleur en watt je limite le conso de ma maison a 9500w dans le code "solair"
+# sensor.voltronic_1_mode_info                  # Vérifie si l'onduleur est en mode "edf" 
 
-#####Entités de Sélection
+##### Entités de Sélection
 #  select.chargeurvoiture_toggle_charging     #Si vous utiliser la meme borne que moi ne toucher pas a ca. c'est le bouton on/off par defaut
 # - "Start charging"
 # - "Stop charging"
 
-# parametre onduleur pour passer GRID ou BATTERIE
+###### parametre onduleur pour passer GRID ou BATTERIE
 # Dans le mode HC le code force la passage de mon onduleur des batterie maison au reseau le selecteur est le suivant:
 # select.voltronic_1_param01
+#
 # il ya deux options possible dans ce selecteur 
 #    - "UTI"  # GRID/reseau
 #    - "SBU"  # Batterie maison
@@ -80,14 +82,14 @@ Votre système doit être capable de gérer les variations de production solaire
     # Déclencheurs pour tous les modes ( lorsque l'un des états suivant change déclanche le code)
     - platform: state
       entity_id:
-        - sensor.fl995hk_batterie
-        - input_number.ve_coupure_pourcentage
-        - sensor.chargeurvoiture_status
-        - input_select.SelecteurChargeurVE
-        - sensor.combined_power_pylontech_voltronic
-        - sensor.combined_battery_soc
-        - number.chargeurvoiture_set_charge_current
-        - sensor.onduleur_tongou_current
+        - sensor.fl995hk_batterie    #batterie voiture
+        - input_number.ve_coupure_pourcentage   #bouton perso 
+        - sensor.chargeurvoiture_status         #status que remonte la borne
+        - input_select.SelecteurChargeurVE      #bouton perso
+        - sensor.combined_power_pylontech_voltronic # puissance soutiré au batterie maison
+        - sensor.combined_battery_soc               # % des batterie maison
+        - number.chargeurvoiture_set_charge_current # bouton des Amps de charge de la borne
+        - sensor.onduleur_tongou_current            # Puissance en watts a la sortie des mes onduleurs
 
   condition: []
   action:
@@ -178,6 +180,25 @@ Votre système doit être capable de gérer les variations de production solaire
               value_template: "{{ not is_state('sensor.chargeurvoiture_status', 'available') }}" #si le status est autre que available
           sequence:
             - choose:
+                # Arrêter la charge si la consommation dépasse 45 A
+                - conditions:
+                    - condition: template
+                      value_template: "{{ states('sensor.onduleur_tongou_current') | float > 45 }}"
+                    - condition: template
+                      value_template: "{{ is_state('sensor.chargeurvoiture_status', 'charging') }}"
+                  sequence:
+                    - service: select.select_option
+                      data:
+                        entity_id: select.chargeurvoiture_toggle_charging
+                        option: "Stop charging"
+                    # Notification pour signaler l'arrêt de la charge
+                    - service: notify.notify
+                      data:
+                        title: "Charge voiture arrêtée"
+                        message: "La charge de la voiture a été arrêtée car la consommation a dépassé 45 A."
+                    # Délai de X minutes
+                    - delay: "00:10:00"
+
                 # Vérifie que c'est les heures creuses et passe l'onduleur en mode UTI (mode edf)
                 - conditions:
                     - condition: template
@@ -201,6 +222,8 @@ Votre système doit être capable de gérer les variations de production solaire
                       value_template: "{{ states('sensor.fl995hk_batterie') | float < states('input_number.ve_coupure_pourcentage') | float }}" # vérifi que le % de charge n'est pas attend
                     - condition: template
                       value_template: "{{ is_state('sensor.chargeurvoiture_status', 'charged') }}"  #la voiture est brnaché et attendre d'etre chargée
+                    - condition: template
+                      value_template: "{{ is_state('sensor.voltronic_1_mode_info', 'edf') }}"     # Vérifie si l'onduleur est en mode edf
                   sequence:
                     - service: select.select_option
                       data:
@@ -258,7 +281,7 @@ Votre système doit être capable de gérer les variations de production solaire
                     - choose:
                         - conditions:
                             - condition: template
-                              value_template: "{{ states('sensor.combined_battery_soc') | float > 40 }}"
+                              value_template: "{{ states('sensor.combined_battery_soc') | float > 50 }}"
                           sequence:
                             - service: select.select_option
                               data:
@@ -422,6 +445,7 @@ Votre système doit être capable de gérer les variations de production solaire
                                     data:
                                       entity_id: number.chargeurvoiture_set_charge_current
                                       value: "{{ current - 3 }}"
+                                  - delay: "00:00:03"
                                       
                               #Lent,  Si l'amperage batterie maison est entre -20 et -5, diminuer le courant de 1A
                               - conditions:
@@ -437,6 +461,7 @@ Votre système doit être capable de gérer les variations de production solaire
                                     data:
                                       entity_id: number.chargeurvoiture_set_charge_current
                                       value: "{{ current - 1 }}"
+                                  - delay: "00:00:03"
 
 
                               ################## Boucle N2 ### Si le courant de charge est déjà à 8A, on entre dans une nouvelle boucle pour enventuelement stop la charge
