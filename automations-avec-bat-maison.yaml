@@ -23,7 +23,8 @@ Votre système soalire doit être capable de gérer les variations de production
 # sensor.combined_power_pylontech_voltronic     # Amperage de charge ou décharge de la batterie maison
 # sensor.combined_battery_soc                   # État de charge de la batterie maison
 # sensor.linky_relais                           # Statut du relais Linky  pour déclancher les heures creuses
-# sensor.onduleur_tongou_current                # puissance soutiré a l'onduleur en watt je limite le conso de ma maison a 9500w dans le code "solair"
+# sensor.onduleur_tongou_power                  # puissance soutiré a l'onduleur en watt je limite le conso de ma maison a 9500w dans le code "solair"
+# sensor.onduleur_tongou_current                # puissance soutiré a l'onduleur en AMpers 
 # sensor.voltronic_1_mode_info                  # Vérifie si l'onduleur est en mode "edf" 
 
 ##### Entités de Sélection
@@ -89,7 +90,7 @@ Votre système soalire doit être capable de gérer les variations de production
         - sensor.combined_power_pylontech_voltronic # puissance soutiré au batterie maison
         - sensor.combined_battery_soc               # % des batterie maison
         - number.chargeurvoiture_set_charge_current # bouton des Amps de charge de la borne
-        - sensor.onduleur_tongou_current            # Puissance en watts a la sortie des mes onduleurs
+        - sensor.onduleur_tongou_power            # Puissance en watts a la sortie des mes onduleurs
 
   condition: []
   action:
@@ -407,7 +408,7 @@ Votre système soalire doit être capable de gérer les variations de production
                       # Diminue la puissance Si la puissance de l'onduleur est supérieure à 9500w, diminuer le courant de 3A
                       - conditions:
                           - condition: numeric_state
-                            entity_id: sensor.onduleur_tongou_current
+                            entity_id: sensor.onduleur_tongou_power
                             above: 9500
                         sequence:
                           - service: number.set_value
@@ -508,7 +509,7 @@ Votre système soalire doit être capable de gérer les variations de production
                             entity_id: sensor.combined_battery_soc
                             below: 98  #verifi le % batterie
                           - condition: numeric_state
-                            entity_id: sensor.onduleur_tongou_current
+                            entity_id: sensor.onduleur_tongou_power
                             below: 9500 #verifi la consomation de ma maison en W et n'augement pas la charge voiture, si la puissance est deja atteinte
                         sequence:
                           - choose:
@@ -531,7 +532,7 @@ Votre système soalire doit être capable de gérer les variations de production
                             entity_id: sensor.combined_battery_soc
                             above: 97  #verifi le % batterie maison
                           - condition: numeric_state
-                            entity_id: sensor.onduleur_tongou_current
+                            entity_id: sensor.onduleur_tongou_power
                             below: 9500  #verifi la consomation de ma maison en W et n'augement pas la charge voiture, si la puissance est deja atteinte
                         sequence:
                           - choose:
