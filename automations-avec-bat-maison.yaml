@@ -77,9 +77,9 @@ Votre système soalire doit être capable de gérer les variations de production
         - sensor.onduleur_tongou_power
 
   condition: []
-
+  
   action:
-    choose:
+    - choose:
 
       ################### Mode "Si déconnecté" ###################
       - conditions:
@@ -88,7 +88,7 @@ Votre système soalire doit être capable de gérer les variations de production
             state: "disconnected"
           - condition: template
             value_template: >
-              {{ not is_state('input_select.SelecteurChargeurVE', 'Off') }}
+              {{ not is_state('input_select.SelecteurChargeurVE', 'off') }}
         sequence:
           - service: input_select.select_option
             data:
@@ -337,7 +337,7 @@ Votre système soalire doit être capable de gérer les variations de production
                         - service: select.select_option
                           data:
                             entity_id: select.chargeurvoiture_toggle_charging
-                            option: "Off"
+                            option: "off"
                         - service: persistent_notification.create
                           data:
                             notification_id: "voiture_charge_batterie_basse"
@@ -461,11 +461,11 @@ Votre système soalire doit être capable de gérer les variations de production
                                     entity_id: number.chargeurvoiture_set_charge_current
                                     value: "{{ current + 1 }}"
                                 - delay: "00:00:02"
-                    # Forçage si SOC > 94 % et légère décharge (> –30 A)
+                    # Forçage si SOC > 94 % et légère décharge (> –40 A)
                     - conditions:
                         - condition: numeric_state
                           entity_id: sensor.combined_power_jk_bms
-                          above: -30
+                          above: -40
                         - condition: numeric_state
                           entity_id: sensor.bms_1_soc_pourcentage
                           above: 94
@@ -485,26 +485,27 @@ Votre système soalire doit être capable de gérer les variations de production
                                     value: "{{ current + 2 }}"
                                 - delay: "00:00:02"
 
-      ################### Mode "Off" ###################
+      ################### Mode "off" ###################
       - conditions:
           - condition: state
             entity_id: input_select.SelecteurChargeurVE
-            state: "Off"
+            state: "off"
           - condition: template
             value_template: >
               {{ not is_state('sensor.chargeurvoiture_status', 'available') }}
         sequence:
           - choose:
               - conditions:
-                  - condition: state
-                    entity_id: sensor.chargeurvoiture_status
-                    state: ["charging", "plugged_in"]
+                  - condition: template
+                    value_template: >
+                      {{ states('sensor.chargeurvoiture_status') in ['charging', 'plugged_in'] }}
                 sequence:
                   - service: select.select_option
                     data:
                       entity_id: select.chargeurvoiture_toggle_charging
                       option: "off"
 
-    default: []
+      default: []
 
   mode: single  # Empêche l'exécution parallèle
+
